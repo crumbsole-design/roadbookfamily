@@ -21,7 +21,7 @@ function RunSetup({
   const [autoInterval, setAutoInterval] = useState(5);
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-sm mx-auto">
+    <div className="flex flex-col gap-6 p-6">
       <h2 className="text-2xl font-bold text-amber-400">⚙️ Configurar recorrido</h2>
       <p className="text-slate-300 font-semibold truncate">{list.name}</p>
 
