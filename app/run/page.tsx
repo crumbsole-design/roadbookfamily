@@ -106,7 +106,7 @@ function ItemCard({ item, isCurrent }: { item: RoadbookItem; isCurrent: boolean 
 
   return (
     <div
-      className={`rounded-2xl p-4 flex flex-col gap-2 transition-all ${
+      className={`h-full rounded-2xl p-4 flex flex-col gap-2 transition-all ${
         isCurrent
           ? "bg-amber-500 text-slate-900 scale-100 shadow-lg shadow-amber-500/30"
           : "bg-slate-800 text-white opacity-60 scale-95"
@@ -158,20 +158,37 @@ function RunSession({
   const [currentIndex, setCurrentIndex] = useState(startIndex);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const restartTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (!autoAdvance) return;
+    timerRef.current = setInterval(() => {
+      setCurrentIndex((idx) => {
+        if (idx >= list.items.length - 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return idx;
+        }
+        return idx + 1;
+      });
+    }, autoInterval * 1000);
+  }, [autoAdvance, autoInterval, list.items.length]);
+
   const goNext = useCallback(() => {
     setCurrentIndex((idx) => Math.min(idx + 1, list.items.length - 1));
-  }, [list.items.length]);
+    if (autoAdvance) restartTimer();
+  }, [list.items.length, autoAdvance, restartTimer]);
 
   const goPrev = useCallback(() => {
     setCurrentIndex((idx) => Math.max(idx - 1, 0));
-  }, []);
+    if (autoAdvance) restartTimer();
+  }, [autoAdvance, restartTimer]);
 
-  // Auto-advance
+  // Auto-advance: start timer
   useEffect(() => {
     if (!autoAdvance) return;
-    timerRef.current = setInterval(goNext, autoInterval * 1000);
+    restartTimer();
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [autoAdvance, autoInterval, goNext]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAdvance, autoInterval]);
 
   // Keyboard
   useEffect(() => {
@@ -187,19 +204,42 @@ function RunSession({
   const windowStart = Math.max(0, Math.min(currentIndex - half, list.items.length - visibleCount));
   const windowEnd = Math.min(windowStart + visibleCount, list.items.length);
   const visibleItems = list.items.slice(windowStart, windowEnd);
+  const actualVisible = visibleItems.length;
 
   if (autoAdvance) {
     return (
       <div className="min-h-screen flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-700">
+        <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-700 shrink-0">
           <button onClick={onStop} className="text-slate-400 hover:text-white">✕ Parar</button>
-          <span className="text-slate-400 text-sm">{currentIndex + 1} / {list.items.length}</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={goPrev}
+              disabled={currentIndex === 0}
+              className="text-slate-300 disabled:text-slate-600 text-xl px-2"
+              aria-label="Punto anterior"
+            >
+              ◀
+            </button>
+            <span className="text-slate-400 text-sm">{currentIndex + 1} / {list.items.length}</span>
+            <button
+              onClick={goNext}
+              disabled={currentIndex === list.items.length - 1}
+              className="text-slate-300 disabled:text-slate-600 text-xl px-2"
+              aria-label="Punto siguiente"
+            >
+              ▶
+            </button>
+          </div>
           <span className="text-amber-400 text-sm">▶ Auto {autoInterval}s</span>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+        <div className="flex-1 flex flex-col p-4 gap-3 overflow-hidden">
           {visibleItems.map((item) => (
-            <ItemCard key={item.id} item={item} isCurrent={item.id === list.items[currentIndex].id} />
+            <div key={item.id} className="flex-1 min-h-0" style={{ flexBasis: `${100 / actualVisible}%` }}>
+              <div className="h-full">
+                <ItemCard item={item} isCurrent={item.id === list.items[currentIndex].id} />
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -218,10 +258,14 @@ function RunSession({
 
       {/* Content area with tap zones overlay */}
       <div className="flex-1 relative overflow-hidden">
-        {/* Items */}
-        <div className="absolute inset-0 overflow-y-auto p-4 flex flex-col gap-3 pointer-events-none">
+        {/* Items: fill screen equally */}
+        <div className="absolute inset-0 flex flex-col p-4 gap-3 pointer-events-none">
           {visibleItems.map((item) => (
-            <ItemCard key={item.id} item={item} isCurrent={item.id === list.items[currentIndex].id} />
+            <div key={item.id} className="flex-1 min-h-0" style={{ flexBasis: `${100 / actualVisible}%` }}>
+              <div className="h-full">
+                <ItemCard item={item} isCurrent={item.id === list.items[currentIndex].id} />
+              </div>
+            </div>
           ))}
         </div>
 
