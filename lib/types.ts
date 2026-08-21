@@ -7,7 +7,7 @@ export interface GpsPoint {
 
 export interface GeofenceCircle {
   center: GpsPoint;
-  radiusMeters: number;
+  radiusKm: number;  // kilometres (e.g. 0.150 = 150 m)
 }
 
 export interface RoadbookItem {

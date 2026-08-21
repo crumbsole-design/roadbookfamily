@@ -266,9 +266,23 @@ export default function ListEditorPage() {
                         ...editingItem,
                         geofence: v ? {
                           center: { lat: +v, lng: editingItem.geofence?.center.lng ?? 0 },
-                          radiusMeters: editingItem.geofence?.radiusMeters ?? 100
+                          radiusKm: editingItem.geofence?.radiusKm ?? 0.1
                         } : undefined
                       });
+                    }}
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData("text");
+                      const match = text.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+                      if (match) {
+                        e.preventDefault();
+                        setEditingItem({
+                          ...editingItem,
+                          geofence: {
+                            center: { lat: +match[1], lng: +match[2] },
+                            radiusKm: editingItem.geofence?.radiusKm ?? 0.1,
+                          }
+                        });
+                      }
                     }}
                     className="bg-slate-700 border border-slate-600 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-purple-500"
                   />
@@ -284,27 +298,42 @@ export default function ListEditorPage() {
                         ...editingItem,
                         geofence: v ? {
                           center: { lat: editingItem.geofence?.center.lat ?? 0, lng: +v },
-                          radiusMeters: editingItem.geofence?.radiusMeters ?? 100
+                          radiusKm: editingItem.geofence?.radiusKm ?? 0.1
                         } : undefined
                       });
+                    }}
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData("text");
+                      const match = text.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+                      if (match) {
+                        e.preventDefault();
+                        setEditingItem({
+                          ...editingItem,
+                          geofence: {
+                            center: { lat: +match[1], lng: +match[2] },
+                            radiusKm: editingItem.geofence?.radiusKm ?? 0.1,
+                          }
+                        });
+                      }
                     }}
                     className="bg-slate-700 border border-slate-600 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-purple-500"
                   />
                 </label>
               </div>
               <label className="flex flex-col gap-1">
-                <span className="text-slate-400 text-xs">Radio (metros)</span>
+                <span className="text-slate-400 text-xs">Radio (km, ej. 0,150 = 150 m)</span>
                 <input
-                  type="number" min={1}
-                  value={editingItem.geofence?.radiusMeters ?? ""}
+                  type="number" min={0} step={0.001}
+                  value={editingItem.geofence?.radiusKm ?? ""}
                   onChange={(e) => {
                     const v = e.target.value;
                     setEditingItem({
                       ...editingItem,
-                      geofence: editingItem.geofence ? { ...editingItem.geofence, radiusMeters: +v } : undefined
+                      geofence: editingItem.geofence ? { ...editingItem.geofence, radiusKm: +v } : undefined
                     });
                   }}
                   disabled={!editingItem.geofence}
+                  placeholder="ej. 0.150"
                   className="bg-slate-700 border border-slate-600 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-purple-500 disabled:opacity-40"
                 />
               </label>
