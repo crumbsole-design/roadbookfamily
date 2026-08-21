@@ -179,7 +179,7 @@ export default function ListEditorPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <label className="flex flex-col gap-1">
-                <span className="text-slate-300 text-sm">⏱ Tiempo desde anterior (s)</span>
+                <span className="text-slate-300 text-sm">⏱ Tiempo desde anterior (min)</span>
                 <input
                   type="number"
                   min={0}
@@ -189,7 +189,7 @@ export default function ListEditorPage() {
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-slate-300 text-sm">⏱ Tiempo hasta siguiente (s)</span>
+                <span className="text-slate-300 text-sm">⏱ Tiempo hasta siguiente (min)</span>
                 <input
                   type="number"
                   min={0}

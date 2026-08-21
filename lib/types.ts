@@ -16,8 +16,8 @@ export interface RoadbookItem {
   longName: string;
   audioUrl?: string;          // optional audio file URL / data URL
   gpsPoint?: GpsPoint;        // optional GPS coordinate
-  timeFromPrev?: number;      // seconds from previous point
-  timeToNext?: number;        // seconds to next point
+  timeFromPrev?: number;      // minutes from previous point
+  timeToNext?: number;        // minutes to next point
   warning?: string;           // optional warning text
   geofence?: GeofenceCircle;  // optional geofence for GPS-based activation
 }

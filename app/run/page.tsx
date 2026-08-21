@@ -130,8 +130,8 @@ function ItemCard({ item, isCurrent }: { item: RoadbookItem; isCurrent: boolean 
       )}
 
       <div className={`flex gap-3 text-xs ${isCurrent ? "text-slate-700" : "text-slate-500"}`}>
-        {item.timeFromPrev !== undefined && <span>⬅️ {item.timeFromPrev}s</span>}
-        {item.timeToNext !== undefined && <span>➡️ {item.timeToNext}s</span>}
+        {item.timeFromPrev !== undefined && <span>⬅️ {item.timeFromPrev}min</span>}
+        {item.timeToNext !== undefined && <span>➡️ {item.timeToNext}min</span>}
         {item.gpsPoint && <span>🌐 {item.gpsPoint.lat.toFixed(4)}, {item.gpsPoint.lng.toFixed(4)}</span>}
       </div>
 
