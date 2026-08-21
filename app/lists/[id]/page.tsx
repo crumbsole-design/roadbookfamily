@@ -213,6 +213,14 @@ export default function ListEditorPage() {
                       ? { lat: +e.target.value, lng: editingItem.gpsPoint?.lng ?? 0 }
                       : undefined
                   })}
+                  onPaste={(e) => {
+                    const text = e.clipboardData.getData("text");
+                    const match = text.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+                    if (match) {
+                      e.preventDefault();
+                      setEditingItem({ ...editingItem, gpsPoint: { lat: +match[1], lng: +match[2] } });
+                    }
+                  }}
                   className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500"
                   placeholder="ej. 40.4168"
                 />
@@ -229,6 +237,14 @@ export default function ListEditorPage() {
                       ? { lat: editingItem.gpsPoint?.lat ?? 0, lng: +e.target.value }
                       : undefined
                   })}
+                  onPaste={(e) => {
+                    const text = e.clipboardData.getData("text");
+                    const match = text.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+                    if (match) {
+                      e.preventDefault();
+                      setEditingItem({ ...editingItem, gpsPoint: { lat: +match[1], lng: +match[2] } });
+                    }
+                  }}
                   className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500"
                   placeholder="ej. -3.7038"
                 />
