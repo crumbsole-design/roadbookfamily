@@ -9,6 +9,15 @@ import Link from "next/link";
 type RunMode = "setup" | "running";
 type PlaybackMode = "manual" | "auto" | "audio";
 
+function formatMinutesForSpeech(value: number) {
+  const normalized = Number.isFinite(value) ? Math.max(0, value) : 0;
+  const spoken = Number.isInteger(normalized)
+    ? `${normalized}`
+    : normalized.toLocaleString("es-ES", { maximumFractionDigits: 2 });
+  const label = normalized === 1 ? "minuto" : "minutos";
+  return `${spoken} ${label}`;
+}
+
 function RunSetup({
   list,
   onStart,
@@ -262,8 +271,7 @@ function RunSession({
         }
 
         if (remaining >= 60) {
-          const minutes = Math.floor(remaining / 60);
-          speakText(`Quedan ${minutes} minuto${minutes === 1 ? "" : "s"}`, { interrupt: false });
+          speakText(`Quedan ${formatMinutesForSpeech(remaining / 60)}`, { interrupt: false });
           return;
         }
 
@@ -277,16 +285,18 @@ function RunSession({
     if (playbackMode !== "audio") return;
     const item = list.items[index];
     if (!item) return;
-
-    const parts = [item.shortName || "Punto sin nombre", item.longName || ""];
+    const parts = [item.shortName || "Punto sin nombre"];
+    if (item.longName) {
+      parts.push(item.longName);
+    }
     if (item.warning) {
       parts.push(`Atención: ${item.warning}`);
     }
     if (item.timeFromPrev !== undefined) {
-      parts.push(`Tiempo desde el punto anterior: ${item.timeFromPrev} minuto${item.timeFromPrev === 1 ? "" : "s"}`);
+      parts.push(`Tiempo desde el punto anterior: ${formatMinutesForSpeech(item.timeFromPrev)}`);
     }
     if (item.timeToNext !== undefined) {
-      parts.push(`Tiempo hasta el siguiente punto: ${item.timeToNext} minuto${item.timeToNext === 1 ? "" : "s"}`);
+      parts.push(`Tiempo hasta el siguiente punto: ${formatMinutesForSpeech(item.timeToNext)}`);
     }
     const message = parts.filter(Boolean).join(". ");
     speakText(message);
