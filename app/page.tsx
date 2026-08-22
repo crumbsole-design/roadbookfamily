@@ -1,4 +1,6 @@
 import Link from "next/link";
+import AudioTestButton from "@/components/AudioTestButton";
+
 const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown";
 
 export default function Home() {
@@ -15,6 +17,7 @@ export default function Home() {
         >
           📋 Mis Listas
         </Link>
+        <AudioTestButton />
       </div>
       <p className="absolute bottom-6 text-sm text-slate-500">Versión {appVersion}</p>
     </main>
