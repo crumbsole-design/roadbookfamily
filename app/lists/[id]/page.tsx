@@ -355,14 +355,20 @@ export default function ListEditorPage() {
                   value={editingItem.geofence?.radiusKm ?? ""}
                   onChange={(e) => {
                     const v = e.target.value;
+                    if (!v) {
+                      setEditingItem({ ...editingItem, geofence: undefined });
+                      return;
+                    }
+                    const existingCenter = editingItem.geofence?.center;
+                    const fallbackCenter = editingItem.gpsPoint ?? { lat: 0, lng: 0 };
+                    const center = existingCenter ?? fallbackCenter;
                     setEditingItem({
                       ...editingItem,
-                      geofence: editingItem.geofence ? { ...editingItem.geofence, radiusKm: +v } : undefined
+                      geofence: { center, radiusKm: +v }
                     });
                   }}
-                  disabled={!editingItem.geofence}
                   placeholder="ej. 0.150"
-                  className="bg-slate-700 border border-slate-600 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-purple-500 disabled:opacity-40"
+                  className="bg-slate-700 border border-slate-600 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-purple-500"
                 />
               </label>
             </div>
