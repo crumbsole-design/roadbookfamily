@@ -1,14 +1,33 @@
 "use client";
 
+function speakWhenReady(text: string, lang: string) {
+  const synth = window.speechSynthesis;
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = lang;
+
+  const doSpeak = () => {
+    synth.cancel();
+    synth.speak(utterance);
+  };
+
+  const voices = synth.getVoices();
+  if (voices.length > 0) {
+    doSpeak();
+  } else {
+    synth.addEventListener("voiceschanged", doSpeak, { once: true });
+    // Fallback: if event never fires, attempt after a short delay
+    setTimeout(() => {
+      if (synth.getVoices().length === 0) {
+        doSpeak();
+      }
+    }, 500);
+  }
+}
+
 export default function AudioTestButton() {
   function handlePlay() {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
-    const utterance = new SpeechSynthesisUtterance(
-      "hola Fernando este es un audio de prueba"
-    );
-    utterance.lang = "es-ES";
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
+    speakWhenReady("hola Fernando este es un audio de prueba", "es-ES");
   }
 
   return (
