@@ -14,12 +14,19 @@ function speakWhenReady(text: string, lang: string) {
   if (voices.length > 0) {
     doSpeak();
   } else {
-    synth.addEventListener("voiceschanged", doSpeak, { once: true });
-    // Fallback: if event never fires, attempt after a short delay
-    setTimeout(() => {
-      if (synth.getVoices().length === 0) {
-        doSpeak();
-      }
+    let fallbackId: ReturnType<typeof setTimeout>;
+
+    const onVoicesReady = () => {
+      clearTimeout(fallbackId);
+      doSpeak();
+    };
+
+    synth.addEventListener("voiceschanged", onVoicesReady, { once: true });
+
+    // Fallback: if voiceschanged never fires, attempt after a short delay
+    fallbackId = setTimeout(() => {
+      synth.removeEventListener("voiceschanged", onVoicesReady);
+      doSpeak();
     }, 500);
   }
 }
