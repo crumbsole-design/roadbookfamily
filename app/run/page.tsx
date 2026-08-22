@@ -209,6 +209,7 @@ function RunSession({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const audioTimeoutsRef = useRef<number[]>([]);
+  const audioInitAnnouncedRef = useRef(false);
   const autoAdvance = playbackMode === "auto" || playbackMode === "audio";
 
   const speakText = useCallback((text: string, options?: { interrupt?: boolean }) => {
@@ -281,7 +282,7 @@ function RunSession({
     });
   }, [clearAudioTimeouts, speakText]);
 
-  const announceCurrentItem = useCallback((index: number) => {
+  const announceCurrentItem = useCallback((index: number, options?: { interrupt?: boolean }) => {
     if (playbackMode !== "audio") return;
     const item = list.items[index];
     if (!item) return;
@@ -299,7 +300,7 @@ function RunSession({
       parts.push(`Tiempo hasta el siguiente punto: ${formatMinutesForSpeech(item.timeToNext)}`);
     }
     const message = parts.filter(Boolean).join(". ");
-    speakText(message);
+    speakText(message, { interrupt: options?.interrupt ?? true });
 
     const nextDelaySeconds = getAutoDelay("next");
     const nextDelay = Number.isFinite(nextDelaySeconds / 1000) ? nextDelaySeconds / 1000 : autoInterval;
@@ -342,6 +343,7 @@ function RunSession({
 
   useEffect(() => {
     if (playbackMode !== "audio") {
+      audioInitAnnouncedRef.current = false;
       clearAudioTimeouts();
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
@@ -349,7 +351,13 @@ function RunSession({
       return;
     }
 
-    announceCurrentItem(currentIndex);
+    if (!audioInitAnnouncedRef.current) {
+      audioInitAnnouncedRef.current = true;
+      speakText("Inicializando navegación por audio");
+      announceCurrentItem(currentIndex, { interrupt: false });
+    } else {
+      announceCurrentItem(currentIndex);
+    }
 
     return () => {
       clearAudioTimeouts();
@@ -357,7 +365,7 @@ function RunSession({
         window.speechSynthesis.cancel();
       }
     };
-  }, [announceCurrentItem, clearAudioTimeouts, currentIndex, playbackMode]);
+  }, [announceCurrentItem, clearAudioTimeouts, currentIndex, playbackMode, speakText]);
 
   // GPS permission + live tracking
   useEffect(() => {
