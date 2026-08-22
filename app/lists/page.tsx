@@ -29,7 +29,7 @@ export default function ListsPage() {
   }
 
   return (
-    <main className="min-h-screen p-4 max-w-lg mx-auto">
+    <main className="min-h-screen p-4">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/" className="text-slate-400 hover:text-white text-2xl">←</Link>
         <h1 className="text-2xl font-bold text-amber-400">📋 Mis Listas</h1>

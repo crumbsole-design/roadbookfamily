@@ -84,7 +84,7 @@ export default function ListEditorPage() {
   if (!list) return <div className="min-h-screen flex items-center justify-center text-slate-400">Cargando...</div>;
 
   return (
-    <main className="min-h-screen p-4 max-w-2xl mx-auto">
+    <main className="min-h-screen p-4">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/lists" className="text-slate-400 hover:text-white text-2xl">←</Link>
         <h1 className="text-2xl font-bold text-amber-400">✏️ Editar Lista</h1>
