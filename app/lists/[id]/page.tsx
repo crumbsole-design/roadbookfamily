@@ -204,21 +204,24 @@ export default function ListEditorPage() {
               <label className="flex flex-col gap-1">
                 <span className="text-slate-300 text-sm">📍 GPS Latitud</span>
                 <input
-                  type="number"
-                  step="any"
+                  type="text"
+                  inputMode="decimal"
                   value={editingItem.gpsPoint?.lat ?? ""}
-                  onChange={(e) => setEditingItem({
-                    ...editingItem,
-                    gpsPoint: e.target.value
-                      ? { lat: +e.target.value, lng: editingItem.gpsPoint?.lng ?? 0 }
-                      : undefined
-                  })}
+                  onChange={(e) => {
+                    const text = e.target.value.trim();
+                    const pair = text.match(/^(-?\d+(?:[.,]\d+)?)\s*,\s*(-?\d+(?:[.,]\d+)?)$/);
+                    if (pair) {
+                      setEditingItem({ ...editingItem, gpsPoint: { lat: +pair[1].replace(",", "."), lng: +pair[2].replace(",", ".") } });
+                    } else {
+                      setEditingItem({ ...editingItem, gpsPoint: text ? { lat: +text.replace(",", "."), lng: editingItem.gpsPoint?.lng ?? 0 } : undefined });
+                    }
+                  }}
                   onPaste={(e) => {
-                    const text = e.clipboardData.getData("text");
-                    const match = text.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+                    const text = e.clipboardData.getData("text").trim();
+                    const match = text.match(/^(-?\d+(?:[.,]\d+)?)\s*,\s*(-?\d+(?:[.,]\d+)?)$/);
                     if (match) {
                       e.preventDefault();
-                      setEditingItem({ ...editingItem, gpsPoint: { lat: +match[1], lng: +match[2] } });
+                      setEditingItem({ ...editingItem, gpsPoint: { lat: +match[1].replace(",", "."), lng: +match[2].replace(",", ".") } });
                     }
                   }}
                   className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500"
@@ -228,21 +231,24 @@ export default function ListEditorPage() {
               <label className="flex flex-col gap-1">
                 <span className="text-slate-300 text-sm">📍 GPS Longitud</span>
                 <input
-                  type="number"
-                  step="any"
+                  type="text"
+                  inputMode="decimal"
                   value={editingItem.gpsPoint?.lng ?? ""}
-                  onChange={(e) => setEditingItem({
-                    ...editingItem,
-                    gpsPoint: e.target.value
-                      ? { lat: editingItem.gpsPoint?.lat ?? 0, lng: +e.target.value }
-                      : undefined
-                  })}
+                  onChange={(e) => {
+                    const text = e.target.value.trim();
+                    const pair = text.match(/^(-?\d+(?:[.,]\d+)?)\s*,\s*(-?\d+(?:[.,]\d+)?)$/);
+                    if (pair) {
+                      setEditingItem({ ...editingItem, gpsPoint: { lat: +pair[1].replace(",", "."), lng: +pair[2].replace(",", ".") } });
+                    } else {
+                      setEditingItem({ ...editingItem, gpsPoint: text ? { lat: editingItem.gpsPoint?.lat ?? 0, lng: +text.replace(",", ".") } : undefined });
+                    }
+                  }}
                   onPaste={(e) => {
-                    const text = e.clipboardData.getData("text");
-                    const match = text.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+                    const text = e.clipboardData.getData("text").trim();
+                    const match = text.match(/^(-?\d+(?:[.,]\d+)?)\s*,\s*(-?\d+(?:[.,]\d+)?)$/);
                     if (match) {
                       e.preventDefault();
-                      setEditingItem({ ...editingItem, gpsPoint: { lat: +match[1], lng: +match[2] } });
+                      setEditingItem({ ...editingItem, gpsPoint: { lat: +match[1].replace(",", "."), lng: +match[2].replace(",", ".") } });
                     }
                   }}
                   className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500"
@@ -258,27 +264,38 @@ export default function ListEditorPage() {
                 <label className="flex flex-col gap-1">
                   <span className="text-slate-400 text-xs">Centro Lat</span>
                   <input
-                    type="number" step="any"
+                    type="text" inputMode="decimal"
                     value={editingItem.geofence?.center.lat ?? ""}
                     onChange={(e) => {
-                      const v = e.target.value;
-                      setEditingItem({
-                        ...editingItem,
-                        geofence: v ? {
-                          center: { lat: +v, lng: editingItem.geofence?.center.lng ?? 0 },
-                          radiusKm: editingItem.geofence?.radiusKm ?? 0.1
-                        } : undefined
-                      });
+                      const text = e.target.value.trim();
+                      const pair = text.match(/^(-?\d+(?:[.,]\d+)?)\s*,\s*(-?\d+(?:[.,]\d+)?)$/);
+                      if (pair) {
+                        setEditingItem({
+                          ...editingItem,
+                          geofence: {
+                            center: { lat: +pair[1].replace(",", "."), lng: +pair[2].replace(",", ".") },
+                            radiusKm: editingItem.geofence?.radiusKm ?? 0.1,
+                          }
+                        });
+                      } else {
+                        setEditingItem({
+                          ...editingItem,
+                          geofence: text ? {
+                            center: { lat: +text.replace(",", "."), lng: editingItem.geofence?.center.lng ?? 0 },
+                            radiusKm: editingItem.geofence?.radiusKm ?? 0.1
+                          } : undefined
+                        });
+                      }
                     }}
                     onPaste={(e) => {
-                      const text = e.clipboardData.getData("text");
-                      const match = text.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+                      const text = e.clipboardData.getData("text").trim();
+                      const match = text.match(/^(-?\d+(?:[.,]\d+)?)\s*,\s*(-?\d+(?:[.,]\d+)?)$/);
                       if (match) {
                         e.preventDefault();
                         setEditingItem({
                           ...editingItem,
                           geofence: {
-                            center: { lat: +match[1], lng: +match[2] },
+                            center: { lat: +match[1].replace(",", "."), lng: +match[2].replace(",", ".") },
                             radiusKm: editingItem.geofence?.radiusKm ?? 0.1,
                           }
                         });
@@ -290,27 +307,38 @@ export default function ListEditorPage() {
                 <label className="flex flex-col gap-1">
                   <span className="text-slate-400 text-xs">Centro Lng</span>
                   <input
-                    type="number" step="any"
+                    type="text" inputMode="decimal"
                     value={editingItem.geofence?.center.lng ?? ""}
                     onChange={(e) => {
-                      const v = e.target.value;
-                      setEditingItem({
-                        ...editingItem,
-                        geofence: v ? {
-                          center: { lat: editingItem.geofence?.center.lat ?? 0, lng: +v },
-                          radiusKm: editingItem.geofence?.radiusKm ?? 0.1
-                        } : undefined
-                      });
+                      const text = e.target.value.trim();
+                      const pair = text.match(/^(-?\d+(?:[.,]\d+)?)\s*,\s*(-?\d+(?:[.,]\d+)?)$/);
+                      if (pair) {
+                        setEditingItem({
+                          ...editingItem,
+                          geofence: {
+                            center: { lat: +pair[1].replace(",", "."), lng: +pair[2].replace(",", ".") },
+                            radiusKm: editingItem.geofence?.radiusKm ?? 0.1,
+                          }
+                        });
+                      } else {
+                        setEditingItem({
+                          ...editingItem,
+                          geofence: text ? {
+                            center: { lat: editingItem.geofence?.center.lat ?? 0, lng: +text.replace(",", ".") },
+                            radiusKm: editingItem.geofence?.radiusKm ?? 0.1
+                          } : undefined
+                        });
+                      }
                     }}
                     onPaste={(e) => {
-                      const text = e.clipboardData.getData("text");
-                      const match = text.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+                      const text = e.clipboardData.getData("text").trim();
+                      const match = text.match(/^(-?\d+(?:[.,]\d+)?)\s*,\s*(-?\d+(?:[.,]\d+)?)$/);
                       if (match) {
                         e.preventDefault();
                         setEditingItem({
                           ...editingItem,
                           geofence: {
-                            center: { lat: +match[1], lng: +match[2] },
+                            center: { lat: +match[1].replace(",", "."), lng: +match[2].replace(",", ".") },
                             radiusKm: editingItem.geofence?.radiusKm ?? 0.1,
                           }
                         });
