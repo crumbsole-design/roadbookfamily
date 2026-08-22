@@ -1,40 +1,44 @@
 "use client";
 
-function speakWhenReady(text: string, lang: string) {
+function speakNow(text: string, lang: string) {
   const synth = window.speechSynthesis;
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = lang;
+  if (!text.trim()) return;
 
-  const doSpeak = () => {
-    synth.cancel();
-    synth.speak(utterance);
+  const createUtterance = () => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    utterance.rate = 1.05;
+    utterance.pitch = 1;
+    return utterance;
   };
 
-  const voices = synth.getVoices();
-  if (voices.length > 0) {
-    doSpeak();
-  } else {
-    let fallbackId: ReturnType<typeof setTimeout>;
+  const voicesReady = synth.getVoices().length > 0;
 
-    const onVoicesReady = () => {
-      clearTimeout(fallbackId);
-      doSpeak();
-    };
+  synth.cancel();
+  synth.speak(createUtterance());
 
-    synth.addEventListener("voiceschanged", onVoicesReady, { once: true });
+  if (voicesReady) return;
 
-    // Fallback: if voiceschanged never fires, attempt after a short delay
-    fallbackId = setTimeout(() => {
-      synth.removeEventListener("voiceschanged", onVoicesReady);
-      doSpeak();
-    }, 500);
-  }
+  let replayed = false;
+  const replayWhenReady = () => {
+    if (replayed) return;
+    replayed = true;
+    synth.cancel();
+    synth.speak(createUtterance());
+  };
+  const onVoicesReady = () => replayWhenReady();
+
+  synth.addEventListener("voiceschanged", onVoicesReady, { once: true });
+  setTimeout(() => {
+    synth.removeEventListener("voiceschanged", onVoicesReady);
+    replayWhenReady();
+  }, 500);
 }
 
 export default function AudioTestButton() {
   function handlePlay() {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
-    speakWhenReady("hola Fernando este es un audio de prueba", "es-ES");
+    speakNow("hola Fernando este es un audio de prueba", "es-ES");
   }
 
   return (
