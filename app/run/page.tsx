@@ -7,17 +7,18 @@ import { getList, upsertList } from "@/lib/store";
 import Link from "next/link";
 
 type RunMode = "setup" | "running";
+type PlaybackMode = "manual" | "auto" | "audio";
 
 function RunSetup({
   list,
   onStart,
 }: {
   list: RoadbookList;
-  onStart: (startIndex: number, visibleCount: number, autoAdvance: boolean, autoInterval: number) => void;
+  onStart: (startIndex: number, visibleCount: number, playbackMode: PlaybackMode, autoInterval: number) => void;
 }) {
   const [startIndex, setStartIndex] = useState(0);
   const [visibleCount, setVisibleCount] = useState(3);
-  const [autoAdvance, setAutoAdvance] = useState(false);
+  const [playbackMode, setPlaybackMode] = useState<PlaybackMode>("manual");
   const [autoInterval, setAutoInterval] = useState(5);
 
   return (
@@ -54,25 +55,31 @@ function RunSetup({
 
       <div className="flex flex-col gap-2">
         <span className="text-slate-300">Modo de avance:</span>
-        <div className="flex gap-3">
+        <div className="grid grid-cols-3 gap-2">
           <button
-            onClick={() => setAutoAdvance(false)}
-            className={`flex-1 py-3 rounded-xl font-semibold transition-colors ${!autoAdvance ? "bg-amber-500 text-slate-900" : "bg-slate-700 text-white"}`}
+            onClick={() => setPlaybackMode("manual")}
+            className={`py-3 rounded-xl font-semibold transition-colors ${playbackMode === "manual" ? "bg-amber-500 text-slate-900" : "bg-slate-700 text-white"}`}
           >
             👆 Manual
           </button>
           <button
-            onClick={() => setAutoAdvance(true)}
-            className={`flex-1 py-3 rounded-xl font-semibold transition-colors ${autoAdvance ? "bg-amber-500 text-slate-900" : "bg-slate-700 text-white"}`}
+            onClick={() => setPlaybackMode("auto")}
+            className={`py-3 rounded-xl font-semibold transition-colors ${playbackMode === "auto" ? "bg-amber-500 text-slate-900" : "bg-slate-700 text-white"}`}
           >
-            ▶ Automático
+            ▶ Auto
+          </button>
+          <button
+            onClick={() => setPlaybackMode("audio")}
+            className={`py-3 rounded-xl font-semibold transition-colors ${playbackMode === "audio" ? "bg-amber-500 text-slate-900" : "bg-slate-700 text-white"}`}
+          >
+            🔊 Audio
           </button>
         </div>
       </div>
 
-      {autoAdvance && (
+      {(playbackMode === "auto" || playbackMode === "audio") && (
         <label className="flex flex-col gap-2">
-          <span className="text-slate-300">Intervalo: <strong className="text-amber-400">{autoInterval}s</strong></span>
+          <span className="text-slate-300">Intervalo base: <strong className="text-amber-400">{autoInterval}s</strong></span>
           <input
             type="range"
             min={1}
@@ -85,7 +92,7 @@ function RunSetup({
       )}
 
       <button
-        onClick={() => onStart(startIndex, visibleCount, autoAdvance, autoInterval)}
+        onClick={() => onStart(startIndex, visibleCount, playbackMode, autoInterval)}
         disabled={list.items.length === 0}
         className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold py-4 rounded-xl text-xl transition-colors"
       >
@@ -175,14 +182,14 @@ function RunSession({
   list,
   startIndex,
   visibleCount,
-  autoAdvance,
+  playbackMode,
   autoInterval,
   onStop,
 }: {
   list: RoadbookList;
   startIndex: number;
   visibleCount: number;
-  autoAdvance: boolean;
+  playbackMode: PlaybackMode;
   autoInterval: number;
   onStop: () => void;
 }) {
@@ -192,6 +199,23 @@ function RunSession({
   const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number } | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  const audioTimeoutsRef = useRef<number[]>([]);
+  const autoAdvance = playbackMode === "auto" || playbackMode === "audio";
+
+  const speakText = useCallback((text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "es-ES";
+    utterance.rate = 1.05;
+    utterance.pitch = 1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  }, []);
+
+  const clearAudioTimeouts = useCallback(() => {
+    audioTimeoutsRef.current.forEach((id) => window.clearTimeout(id));
+    audioTimeoutsRef.current = [];
+  }, []);
 
   const getAutoDelay = useCallback((direction: "next" | "prev") => {
     const currentItem = list.items[currentIndex];
@@ -202,6 +226,61 @@ function RunSession({
 
     return autoInterval * 1000;
   }, [autoInterval, currentIndex, list.items]);
+
+  const scheduleAudioCountdown = useCallback((seconds: number) => {
+    clearAudioTimeouts();
+    if (seconds <= 0) return;
+
+    const step = seconds >= 3600 ? 600 : seconds >= 600 ? 300 : seconds >= 300 ? 60 : seconds >= 60 ? 60 : 10;
+    const announceTimes = new Set<number>();
+
+    for (let remaining = Math.max(0, Math.ceil(seconds)); remaining > 0; remaining -= step) {
+      const safeRemaining = Math.max(0, remaining);
+      if (safeRemaining <= 10) {
+        for (let s = safeRemaining; s >= 0; s -= 1) {
+          announceTimes.add(s);
+        }
+        break;
+      }
+      announceTimes.add(safeRemaining);
+    }
+
+    const times = Array.from(announceTimes).sort((a, b) => a - b);
+    times.forEach((remaining) => {
+      const delaySeconds = Math.max(0, seconds - remaining);
+      const id = window.setTimeout(() => {
+        if (remaining <= 10) {
+          speakText(`Quedan ${remaining} segundos`);
+          return;
+        }
+
+        if (remaining >= 60) {
+          const minutes = Math.floor(remaining / 60);
+          speakText(`Quedan ${minutes} minuto${minutes === 1 ? "" : "s"}`);
+          return;
+        }
+
+        speakText(`Quedan ${remaining} segundos`);
+      }, delaySeconds * 1000);
+      audioTimeoutsRef.current.push(id);
+    });
+  }, [clearAudioTimeouts, speakText]);
+
+  const announceCurrentItem = useCallback((index: number) => {
+    if (playbackMode !== "audio") return;
+    const item = list.items[index];
+    if (!item) return;
+
+    const parts = [item.shortName || "Punto sin nombre", item.longName || ""].filter(Boolean);
+    const message = parts.join(". ");
+    speakText(message);
+
+    const nextDelaySeconds = getAutoDelay("next");
+    const nextDelay = Number.isFinite(nextDelaySeconds / 1000) ? nextDelaySeconds / 1000 : autoInterval;
+    if (nextDelay > 0) {
+      scheduleAudioCountdown(nextDelay);
+    }
+  }, [autoInterval, getAutoDelay, list.items, playbackMode, scheduleAudioCountdown, speakText]);
 
   const restartTimer = useCallback((direction: "next" | "prev" = "next") => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -218,23 +297,13 @@ function RunSession({
   }, [autoAdvance, getAutoDelay, list.items.length]);
 
   const goNext = useCallback(() => {
-    setCurrentIndex((idx) => {
-      const nextIndex = Math.min(idx + 1, list.items.length - 1);
-      return nextIndex;
-    });
-    if (autoAdvance) {
-      restartTimer("next");
-    }
+    setCurrentIndex((idx) => Math.min(idx + 1, list.items.length - 1));
+    if (autoAdvance) restartTimer("next");
   }, [list.items.length, autoAdvance, restartTimer]);
 
   const goPrev = useCallback(() => {
-    setCurrentIndex((idx) => {
-      const prevIndex = Math.max(idx - 1, 0);
-      return prevIndex;
-    });
-    if (autoAdvance) {
-      restartTimer("prev");
-    }
+    setCurrentIndex((idx) => Math.max(idx - 1, 0));
+    if (autoAdvance) restartTimer("prev");
   }, [autoAdvance, restartTimer]);
 
   // Auto-advance: start timer
@@ -244,6 +313,25 @@ function RunSession({
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoAdvance, autoInterval, currentIndex]);
+
+  useEffect(() => {
+    if (playbackMode !== "audio") {
+      clearAudioTimeouts();
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      return;
+    }
+
+    announceCurrentItem(currentIndex);
+
+    return () => {
+      clearAudioTimeouts();
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [announceCurrentItem, clearAudioTimeouts, currentIndex, playbackMode]);
 
   // GPS permission + live tracking
   useEffect(() => {
@@ -339,7 +427,7 @@ function RunSession({
               ▶
             </button>
           </div>
-          <span className="text-amber-400 text-sm">▶ Auto {autoInterval}s</span>
+          <span className="text-amber-400 text-sm">{playbackMode === "audio" ? "🔊 Audio" : "▶ Auto"} {playbackMode === "audio" ? "" : `${autoInterval}s`}</span>
         </div>
         <div className="flex-1 relative overflow-hidden">
           <div className="absolute inset-0 flex flex-col p-4 gap-3 pointer-events-none">
@@ -452,7 +540,7 @@ function RunPageInner() {
   const [runConfig, setRunConfig] = useState<{
     startIndex: number;
     visibleCount: number;
-    autoAdvance: boolean;
+    playbackMode: PlaybackMode;
     autoInterval: number;
   } | null>(null);
 
@@ -463,13 +551,13 @@ function RunPageInner() {
     setList(l);
   }, [listId, router]);
 
-  function handleStart(startIndex: number, visibleCount: number, autoAdvance: boolean, autoInterval: number) {
+  function handleStart(startIndex: number, visibleCount: number, playbackMode: PlaybackMode, autoInterval: number) {
     if (!list) return;
     // Update lastActivated
     const updated = { ...list, lastActivated: new Date().toISOString() };
     upsertList(updated);
     setList(updated);
-    setRunConfig({ startIndex, visibleCount, autoAdvance, autoInterval });
+    setRunConfig({ startIndex, visibleCount, playbackMode, autoInterval });
     setMode("running");
   }
 
