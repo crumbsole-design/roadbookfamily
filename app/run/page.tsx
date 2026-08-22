@@ -193,7 +193,17 @@ function RunSession({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
-  const restartTimer = useCallback(() => {
+  const getAutoDelay = useCallback((direction: "next" | "prev") => {
+    const currentItem = list.items[currentIndex];
+    if (!currentItem) return autoInterval * 1000;
+
+    const minutes = direction === "next" ? currentItem.timeToNext : currentItem.timeFromPrev;
+    if (minutes !== undefined) return minutes * 60 * 1000;
+
+    return autoInterval * 1000;
+  }, [autoInterval, currentIndex, list.items]);
+
+  const restartTimer = useCallback((direction: "next" | "prev" = "next") => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (!autoAdvance) return;
     timerRef.current = setInterval(() => {
@@ -204,26 +214,36 @@ function RunSession({
         }
         return idx + 1;
       });
-    }, autoInterval * 1000);
-  }, [autoAdvance, autoInterval, list.items.length]);
+    }, getAutoDelay(direction));
+  }, [autoAdvance, getAutoDelay, list.items.length]);
 
   const goNext = useCallback(() => {
-    setCurrentIndex((idx) => Math.min(idx + 1, list.items.length - 1));
-    if (autoAdvance) restartTimer();
+    setCurrentIndex((idx) => {
+      const nextIndex = Math.min(idx + 1, list.items.length - 1);
+      return nextIndex;
+    });
+    if (autoAdvance) {
+      restartTimer("next");
+    }
   }, [list.items.length, autoAdvance, restartTimer]);
 
   const goPrev = useCallback(() => {
-    setCurrentIndex((idx) => Math.max(idx - 1, 0));
-    if (autoAdvance) restartTimer();
+    setCurrentIndex((idx) => {
+      const prevIndex = Math.max(idx - 1, 0);
+      return prevIndex;
+    });
+    if (autoAdvance) {
+      restartTimer("prev");
+    }
   }, [autoAdvance, restartTimer]);
 
   // Auto-advance: start timer
   useEffect(() => {
     if (!autoAdvance) return;
-    restartTimer();
+    restartTimer("next");
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoAdvance, autoInterval]);
+  }, [autoAdvance, autoInterval, currentIndex]);
 
   // GPS permission + live tracking
   useEffect(() => {
@@ -321,14 +341,38 @@ function RunSession({
           </div>
           <span className="text-amber-400 text-sm">▶ Auto {autoInterval}s</span>
         </div>
-        <div className="flex-1 flex flex-col p-4 gap-3 overflow-hidden">
-          {visibleItems.map((item) => (
-            <div key={item.id} className="flex-1 min-h-0" style={{ flexBasis: `${100 / actualVisible}%` }}>
-              <div className="h-full">
-                <ItemCard item={item} isCurrent={item.id === list.items[currentIndex].id} />
+        <div className="flex-1 relative overflow-hidden">
+          <div className="absolute inset-0 flex flex-col p-4 gap-3 pointer-events-none">
+            {visibleItems.map((item) => (
+              <div key={item.id} className="flex-1 min-h-0" style={{ flexBasis: `${100 / actualVisible}%` }}>
+                <div className="h-full">
+                  <ItemCard item={item} isCurrent={item.id === list.items[currentIndex].id} />
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          <div className="absolute inset-0 flex flex-col pointer-events-auto">
+            <button
+              className="flex-1 flex items-center justify-center opacity-0 hover:opacity-10 bg-blue-400 transition-opacity"
+              onClick={goPrev}
+              disabled={currentIndex === 0}
+              aria-label="Punto anterior"
+            />
+            <button
+              className="flex-1 flex items-center justify-center opacity-0 hover:opacity-10 bg-green-400 transition-opacity"
+              onClick={goNext}
+              disabled={currentIndex === list.items.length - 1}
+              aria-label="Punto siguiente"
+            />
+          </div>
+
+          <div className="absolute inset-x-0 top-0 h-1/2 border-b border-slate-700/40 pointer-events-none flex items-end justify-center pb-1">
+            <span className="text-slate-600 text-xs">▲ Anterior</span>
+          </div>
+          <div className="absolute inset-x-0 bottom-0 h-1/2 pointer-events-none flex items-start justify-center pt-1">
+            <span className="text-slate-600 text-xs">▼ Siguiente</span>
+          </div>
         </div>
         {currentPosition && gpsEnabled && (
           <div className="fixed bottom-14 left-4 z-40 rounded-lg border border-emerald-500/50 bg-slate-900/80 px-2 py-1 text-[10px] text-emerald-200 shadow-lg">
