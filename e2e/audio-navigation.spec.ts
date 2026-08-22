@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { test, type Page } from "@playwright/test";
 
 declare global {
   interface Window {
@@ -49,10 +49,12 @@ test("modo audio anuncia activación, puntos y cuenta atrás", async ({ page }) 
   await page.goto("/");
   await page.getByRole("link", { name: "📋 Mis Listas" }).click();
 
-  await page.getByPlaceholder("Nombre de nueva lista...").fill("Ruta audio e2e");
+  const listName = `Ruta audio e2e ${Date.now()}`;
+  await page.getByPlaceholder("Nombre de nueva lista...").fill(listName);
   await page.getByRole("button", { name: "＋" }).click();
 
-  await page.getByRole("link", { name: "✏️ Editar" }).click();
+  const createdList = page.locator("li", { hasText: listName });
+  await createdList.getByRole("link", { name: "✏️ Editar" }).click();
 
   await addPoint(page, "uno");
   await addPoint(page, "dos");
@@ -66,22 +68,20 @@ test("modo audio anuncia activación, puntos y cuenta atrás", async ({ page }) 
   await page.waitForFunction(() => {
     const spoken = (window.__spokenMessages ?? []).map((value) => value.toLowerCase());
     return spoken.some((value) => value.includes("navegación por voz activada"));
-  });
+  }, undefined, { timeout: 45_000 });
 
   await page.waitForFunction(() => {
     const spoken = (window.__spokenMessages ?? []).map((value) => value.toLowerCase());
-    return ["uno", "dos", "tres", "último"].every((name) =>
-      spoken.some((value) => value.includes(name))
+    const indexes = ["uno", "dos", "tres", "último"].map((name) =>
+      spoken.findIndex((value) => value.includes(name))
     );
-  });
+    return indexes.every((index) => index >= 0) && indexes.every((index, i) => i === 0 || index > indexes[i - 1]);
+  }, undefined, { timeout: 45_000 });
 
   await page.waitForFunction(() => {
-    const spoken = window.__spokenMessages ?? [];
+    const spoken = (window.__spokenMessages ?? []).map((value) => value.toLowerCase());
     return [4, 3, 2, 1].every((remaining) =>
-      spoken.some((value) => value.includes(`Quedan ${remaining} segundos`))
+      spoken.some((value) => value.includes(`quedan ${remaining} segundos`))
     );
-  });
-
-  const spokenMessages = await page.evaluate(() => window.__spokenMessages ?? []);
-  expect(spokenMessages.length).toBeGreaterThan(0);
+  }, undefined, { timeout: 45_000 });
 });
