@@ -202,13 +202,18 @@ function RunSession({
   const audioTimeoutsRef = useRef<number[]>([]);
   const autoAdvance = playbackMode === "auto" || playbackMode === "audio";
 
-  const speakText = useCallback((text: string) => {
+  const speakText = useCallback((text: string, options?: { interrupt?: boolean }) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (!text.trim()) return;
+
+    const interrupt = options?.interrupt ?? true;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "es-ES";
     utterance.rate = 1.05;
     utterance.pitch = 1;
-    window.speechSynthesis.cancel();
+    if (interrupt) {
+      window.speechSynthesis.cancel();
+    }
     window.speechSynthesis.speak(utterance);
   }, []);
 
@@ -248,19 +253,21 @@ function RunSession({
     const times = Array.from(announceTimes).sort((a, b) => a - b);
     times.forEach((remaining) => {
       const delaySeconds = Math.max(0, seconds - remaining);
+      if (remaining === seconds || remaining === 0) return;
+
       const id = window.setTimeout(() => {
         if (remaining <= 10) {
-          speakText(`Quedan ${remaining} segundos`);
+          speakText(`Quedan ${remaining} segundos`, { interrupt: false });
           return;
         }
 
         if (remaining >= 60) {
           const minutes = Math.floor(remaining / 60);
-          speakText(`Quedan ${minutes} minuto${minutes === 1 ? "" : "s"}`);
+          speakText(`Quedan ${minutes} minuto${minutes === 1 ? "" : "s"}`, { interrupt: false });
           return;
         }
 
-        speakText(`Quedan ${remaining} segundos`);
+        speakText(`Quedan ${remaining} segundos`, { interrupt: false });
       }, delaySeconds * 1000);
       audioTimeoutsRef.current.push(id);
     });
@@ -271,8 +278,17 @@ function RunSession({
     const item = list.items[index];
     if (!item) return;
 
-    const parts = [item.shortName || "Punto sin nombre", item.longName || ""].filter(Boolean);
-    const message = parts.join(". ");
+    const parts = [item.shortName || "Punto sin nombre", item.longName || ""];
+    if (item.warning) {
+      parts.push(`Atención: ${item.warning}`);
+    }
+    if (item.timeFromPrev !== undefined) {
+      parts.push(`Tiempo desde el punto anterior: ${item.timeFromPrev} minuto${item.timeFromPrev === 1 ? "" : "s"}`);
+    }
+    if (item.timeToNext !== undefined) {
+      parts.push(`Tiempo hasta el siguiente punto: ${item.timeToNext} minuto${item.timeToNext === 1 ? "" : "s"}`);
+    }
+    const message = parts.filter(Boolean).join(". ");
     speakText(message);
 
     const nextDelaySeconds = getAutoDelay("next");
