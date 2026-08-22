@@ -140,6 +140,37 @@ function ItemCard({ item, isCurrent }: { item: RoadbookItem; isCurrent: boolean 
   );
 }
 
+function GpsStatusIndicator({
+  gpsEnabled,
+  gpsStatus,
+  onToggle,
+}: {
+  gpsEnabled: boolean;
+  gpsStatus: "checking" | "active" | "denied" | "unsupported" | "off";
+  onToggle: () => void;
+}) {
+  const isActive = gpsEnabled && gpsStatus === "active";
+  const label = !gpsEnabled ? "GPS desactivado" : gpsStatus === "active" ? "GPS activo" : gpsStatus === "denied" ? "GPS denegado" : gpsStatus === "unsupported" ? "GPS no disponible" : "GPS comprobando...";
+  const visibleText = !gpsEnabled ? "GPS desactivado" : gpsStatus === "active" ? "GPS activo" : "GPS";
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={label}
+      aria-label={label}
+      className={`fixed bottom-4 left-4 z-40 flex items-center gap-2 rounded-full border px-2.5 py-1.5 shadow-lg backdrop-blur-sm transition-all ${
+        isActive
+          ? "border-emerald-400/70 bg-emerald-500/25 text-emerald-100"
+          : "border-slate-600 bg-slate-900/80 text-slate-200"
+      }`}
+    >
+      <span className={`inline-block h-2.5 w-2.5 rounded-full ${isActive ? "bg-emerald-400" : "bg-slate-400"}`} />
+      <span className="text-[10px] font-bold uppercase tracking-wide">{visibleText}</span>
+    </button>
+  );
+}
+
 function RunSession({
   list,
   startIndex,
@@ -156,7 +187,11 @@ function RunSession({
   onStop: () => void;
 }) {
   const [currentIndex, setCurrentIndex] = useState(startIndex);
+  const [gpsEnabled, setGpsEnabled] = useState(true);
+  const [gpsStatus, setGpsStatus] = useState<"checking" | "active" | "denied" | "unsupported" | "off">("checking");
+  const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number } | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const watchIdRef = useRef<number | null>(null);
 
   const restartTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -190,6 +225,58 @@ function RunSession({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoAdvance, autoInterval]);
 
+  // GPS permission + live tracking
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+
+    if (!gpsEnabled) {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      setCurrentPosition(null);
+      setGpsStatus("off");
+      return;
+    }
+
+    if (!("geolocation" in navigator)) {
+      setGpsStatus("unsupported");
+      setCurrentPosition(null);
+      return;
+    }
+
+    setGpsStatus("checking");
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        setCurrentPosition({ lat: position.coords.latitude, lng: position.coords.longitude });
+        setGpsStatus("active");
+      },
+      () => {
+        setCurrentPosition(null);
+        setGpsStatus("denied");
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 60000,
+      }
+    );
+
+    watchIdRef.current = watchId;
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+  }, [gpsEnabled]);
+
+  const handleToggleGps = useCallback(() => {
+    setGpsEnabled((prev) => !prev);
+  }, []);
+
   // Keyboard
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -209,6 +296,7 @@ function RunSession({
   if (autoAdvance) {
     return (
       <div className="min-h-screen flex flex-col">
+        <GpsStatusIndicator gpsEnabled={gpsEnabled} gpsStatus={gpsStatus} onToggle={handleToggleGps} />
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-700 shrink-0">
           <button onClick={onStop} className="text-slate-400 hover:text-white">✕ Parar</button>
@@ -242,6 +330,11 @@ function RunSession({
             </div>
           ))}
         </div>
+        {currentPosition && gpsEnabled && (
+          <div className="fixed bottom-14 left-4 z-40 rounded-lg border border-emerald-500/50 bg-slate-900/80 px-2 py-1 text-[10px] text-emerald-200 shadow-lg">
+            {currentPosition.lat.toFixed(5)}, {currentPosition.lng.toFixed(5)}
+          </div>
+        )}
       </div>
     );
   }
@@ -249,6 +342,7 @@ function RunSession({
   // Manual mode: screen split into two vertical halves
   return (
     <div className="min-h-screen flex flex-col select-none">
+      <GpsStatusIndicator gpsEnabled={gpsEnabled} gpsStatus={gpsStatus} onToggle={handleToggleGps} />
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-700 shrink-0">
         <button onClick={onStop} className="text-slate-400 hover:text-white">✕ Parar</button>
@@ -295,6 +389,11 @@ function RunSession({
           <span className="text-slate-600 text-xs">▼ Siguiente</span>
         </div>
       </div>
+      {currentPosition && gpsEnabled && (
+        <div className="fixed bottom-14 left-4 z-40 rounded-lg border border-emerald-500/50 bg-slate-900/80 px-2 py-1 text-[10px] text-emerald-200 shadow-lg">
+          {currentPosition.lat.toFixed(5)}, {currentPosition.lng.toFixed(5)}
+        </div>
+      )}
     </div>
   );
 }
