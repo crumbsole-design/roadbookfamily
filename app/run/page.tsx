@@ -353,7 +353,7 @@ function RunSession({
 
     if (!audioInitAnnouncedRef.current) {
       audioInitAnnouncedRef.current = true;
-      speakText("Inicializando navegación por audio");
+      speakText("Navegación por voz activada");
       announceCurrentItem(currentIndex, { interrupt: false });
     } else {
       announceCurrentItem(currentIndex);
