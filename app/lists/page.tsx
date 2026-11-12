@@ -1,9 +1,9 @@
 "use client";
 
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, useRef, useState } from "react";
 import Link from "next/link";
 import { RoadbookList, RoadbookItem } from "@/lib/types";
-import { getLists, upsertList, deleteList, createEmptyList, generateId } from "@/lib/store";
+import { getLists, upsertList, deleteList, createEmptyList, generateId, useLists } from "@/lib/store";
 
 function makeSafeFilename(value: string) {
   return (value || "lista")
@@ -23,8 +23,15 @@ function downloadTextFile(filename: string, content: string) {
   URL.revokeObjectURL(url);
 }
 
-function normalizeImportedItem(item: any): RoadbookItem | null {
-  if (!item || typeof item !== "object") return null;
+type ImportedRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): ImportedRecord | null {
+  return value && typeof value === "object" ? (value as ImportedRecord) : null;
+}
+
+function normalizeImportedItem(value: unknown): RoadbookItem | null {
+  const item = asRecord(value);
+  if (!item) return null;
 
   const normalized: RoadbookItem = {
     id: typeof item.id === "string" ? item.id : generateId(),
@@ -36,17 +43,19 @@ function normalizeImportedItem(item: any): RoadbookItem | null {
     timeToNext: typeof item.timeToNext === "number" ? item.timeToNext : undefined,
   };
 
-  if (item.gpsPoint && typeof item.gpsPoint === "object") {
-    const lat = Number(item.gpsPoint.lat);
-    const lng = Number(item.gpsPoint.lng);
+  const gpsPoint = asRecord(item.gpsPoint);
+  if (gpsPoint) {
+    const lat = Number(gpsPoint.lat);
+    const lng = Number(gpsPoint.lng);
     if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
       normalized.gpsPoint = { lat, lng };
     }
   }
 
-  if (item.geofence && typeof item.geofence === "object") {
-    const center = item.geofence.center;
-    const radiusKm = Number(item.geofence.radiusKm);
+  const geofence = asRecord(item.geofence);
+  if (geofence) {
+    const center = asRecord(geofence.center);
+    const radiusKm = Number(geofence.radiusKm);
     if (center && !Number.isNaN(Number(center.lat)) && !Number.isNaN(Number(center.lng)) && !Number.isNaN(radiusKm)) {
       normalized.geofence = {
         center: { lat: Number(center.lat), lng: Number(center.lng) },
@@ -58,8 +67,9 @@ function normalizeImportedItem(item: any): RoadbookItem | null {
   return normalized;
 }
 
-function normalizeImportedList(raw: any): RoadbookList | null {
-  if (!raw || typeof raw !== "object") return null;
+function normalizeImportedList(value: unknown): RoadbookList | null {
+  const raw = asRecord(value);
+  if (!raw) return null;
   const name = typeof raw.name === "string" && raw.name.trim() ? raw.name.trim() : "Lista importada";
   const items = Array.isArray(raw.items) ? raw.items.map(normalizeImportedItem).filter(Boolean) as RoadbookItem[] : [];
 
@@ -72,31 +82,21 @@ function normalizeImportedList(raw: any): RoadbookList | null {
 }
 
 export default function ListsPage() {
-  const [lists, setLists] = useState<RoadbookList[]>([]);
+  const lists = useLists() ?? [];
   const [newName, setNewName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setLists(getLists());
-  }, []);
-
-  function refreshLists() {
-    setLists(getLists());
-  }
 
   function handleCreate() {
     const name = newName.trim();
     if (!name) return;
     const list = createEmptyList(name);
     upsertList(list);
-    refreshLists();
     setNewName("");
   }
 
   function handleDelete(id: string) {
     if (!confirm("¿Eliminar esta lista?")) return;
     deleteList(id);
-    refreshLists();
   }
 
   function handleExport(list: RoadbookList) {
@@ -105,7 +105,7 @@ export default function ListsPage() {
   }
 
   function resolveUniqueName(baseName: string, usedNames: Set<string>) {
-    let candidate = baseName.trim() || "Lista importada";
+    const candidate = baseName.trim() || "Lista importada";
     if (!usedNames.has(candidate)) {
       usedNames.add(candidate);
       return candidate;
@@ -142,8 +142,6 @@ export default function ListsPage() {
         list.name = resolveUniqueName(list.name, existingNames);
         upsertList(list);
       });
-
-      refreshLists();
     } catch (error) {
       console.error(error);
       alert("No se pudo importar el archivo. Asegúrate de que sea un texto JSON válido.");

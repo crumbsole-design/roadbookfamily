@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { RoadbookList, RoadbookItem } from "@/lib/types";
-import { getList, upsertList, generateId, createEmptyItem } from "@/lib/store";
+import { upsertList, createEmptyItem, useLists } from "@/lib/store";
 import Link from "next/link";
 
 export default function ListEditorPage() {
@@ -11,21 +11,20 @@ export default function ListEditorPage() {
   const router = useRouter();
   const id = params.id as string;
 
-  const [list, setList] = useState<RoadbookList | null>(null);
+  const lists = useLists();
+  const list = lists?.find((l) => l.id === id) ?? null;
   const [editingItem, setEditingItem] = useState<RoadbookItem | null>(null);
-  const [listName, setListName] = useState("");
+  // Borrador del nombre mientras se escribe; null muestra el nombre guardado.
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const listName = nameDraft ?? list?.name ?? "";
   const audioInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const l = getList(id);
-    if (!l) { router.push("/lists"); return; }
-    setList(l);
-    setListName(l.name);
-  }, [id, router]);
+    if (lists && !list) router.push("/lists");
+  }, [lists, list, router]);
 
   function save(updated: RoadbookList) {
     upsertList(updated);
-    setList(updated);
   }
 
   function handleNameChange() {
@@ -95,7 +94,7 @@ export default function ListEditorPage() {
         <input
           type="text"
           value={listName}
-          onChange={(e) => setListName(e.target.value)}
+          onChange={(e) => setNameDraft(e.target.value)}
           onBlur={handleNameChange}
           className="flex-1 bg-slate-800 border border-slate-600 rounded-lg px-4 py-2 text-white font-semibold focus:outline-none focus:border-amber-500"
         />

@@ -3,10 +3,14 @@
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { RoadbookList, RoadbookItem } from "@/lib/types";
-import { getList, upsertList } from "@/lib/store";
+import { upsertList, useLists } from "@/lib/store";
 import Link from "next/link";
 
 type RunMode = "setup" | "running";
+
+function initialGpsStatus(): "checking" | "unsupported" {
+  return typeof navigator !== "undefined" && "geolocation" in navigator ? "checking" : "unsupported";
+}
 type PlaybackMode = "manual" | "auto" | "audio";
 
 function formatMinutesForSpeech(value: number) {
@@ -204,7 +208,7 @@ function RunSession({
 }) {
   const [currentIndex, setCurrentIndex] = useState(startIndex);
   const [gpsEnabled, setGpsEnabled] = useState(true);
-  const [gpsStatus, setGpsStatus] = useState<"checking" | "active" | "denied" | "unsupported" | "off">("checking");
+  const [gpsStatus, setGpsStatus] = useState<"checking" | "active" | "denied" | "unsupported" | "off">(initialGpsStatus);
   const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number } | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const watchIdRef = useRef<number | null>(null);
@@ -369,25 +373,8 @@ function RunSession({
 
   // GPS permission + live tracking
   useEffect(() => {
-    if (typeof navigator === "undefined") return;
-
-    if (!gpsEnabled) {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-      setCurrentPosition(null);
-      setGpsStatus("off");
-      return;
-    }
-
-    if (!("geolocation" in navigator)) {
-      setGpsStatus("unsupported");
-      setCurrentPosition(null);
-      return;
-    }
-
-    setGpsStatus("checking");
+    // #16: el estado se reinicia en handleToggleGps; el efecto solo escucha la posición.
+    if (!gpsEnabled || initialGpsStatus() === "unsupported") return;
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
@@ -417,6 +404,8 @@ function RunSession({
 
   const handleToggleGps = useCallback(() => {
     setGpsEnabled((prev) => !prev);
+    setGpsStatus(initialGpsStatus());
+    setCurrentPosition(null);
   }, []);
 
   // Keyboard
@@ -569,7 +558,8 @@ function RunPageInner() {
   const router = useRouter();
   const listId = searchParams.get("listId");
 
-  const [list, setList] = useState<RoadbookList | null>(null);
+  const lists = useLists();
+  const list = (listId && lists?.find((l) => l.id === listId)) || null;
   const [mode, setMode] = useState<RunMode>("setup");
   const [runConfig, setRunConfig] = useState<{
     startIndex: number;
@@ -579,18 +569,14 @@ function RunPageInner() {
   } | null>(null);
 
   useEffect(() => {
-    if (!listId) { router.push("/lists"); return; }
-    const l = getList(listId);
-    if (!l) { router.push("/lists"); return; }
-    setList(l);
-  }, [listId, router]);
+    if (!listId || (lists && !list)) router.push("/lists");
+  }, [listId, lists, list, router]);
 
   function handleStart(startIndex: number, visibleCount: number, playbackMode: PlaybackMode, autoInterval: number) {
     if (!list) return;
     // Update lastActivated
     const updated = { ...list, lastActivated: new Date().toISOString() };
     upsertList(updated);
-    setList(updated);
     setRunConfig({ startIndex, visibleCount, playbackMode, autoInterval });
     setMode("running");
   }
