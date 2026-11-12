@@ -1,0 +1,7 @@
+# Fuerza finales de línea LF en el repositorio para evitar diffs falsos con CRLF.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.mp3 binary
